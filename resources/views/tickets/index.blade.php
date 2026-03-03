@@ -1,140 +1,254 @@
+{{-- ============================================ --}}
+{{-- VIEW: tickets/index.blade.php --}}
+{{-- Menampilkan daftar tiket dengan Authorization --}}
+{{-- MINGGU 4 HARI 2: @can/@cannot directives --}}
+{{-- ============================================ --}}
+
 @extends('layouts.app')
+
 @section('title', 'Daftar Tiket')
 
 @section('content')
-
-{{-- HEADER --}}
-<div class="mb-4 p-4 bg-light rounded-4 shadow-sm">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h2 class="fw-bold mb-1">Ticket Dashboard</h2>
-            <p class="text-muted mb-0">Manage semua support ticket perusahaan</p>
-        </div>
-        <a href="{{ route('tickets.create') }}" class="btn btn-dark rounded-pill px-4 shadow">
-            <i class="bi bi-plus-circle"></i> New Ticket
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-ticket-detailed"></i>
+            {{-- MINGGU 4 HARI 2: Tampilan berbeda berdasarkan role --}}
+            @if(auth()->user()->isUser())
+                Tiket Saya
+            @else
+                Semua Tiket
+            @endif
+        </h1>
+        <p class="text-muted mb-0">
+            @if(auth()->user()->isAdmin())
+                <span class="badge bg-danger">Admin</span> Kelola semua tiket
+            @elseif(auth()->user()->isStaff())
+                <span class="badge bg-primary">Staff</span> Lihat & kelola tiket assigned
+            @else
+                <span class="badge bg-secondary">User</span> Kelola tiket Anda
+            @endif
+        </p>
+    </div>
+    @can('create', App\Models\Ticket::class)
+        <a href="{{ route('tickets.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Buat Tiket Baru
         </a>
-    </div>
+    @endcan
 </div>
 
-{{-- STAT DASHBOARD --}}
-<div class="row g-3 mb-4">
-
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 bg-warning bg-gradient">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-semibold">Open Tickets</h6>
-                    <h2 class="fw-bold">
-                        {{ \App\Models\Ticket::where('status','open')->count() }}
-                    </h2>
+{{-- ============================================ --}}
+{{-- FILTER (Admin/Staff only) --}}
+{{-- ============================================ --}}
+@can('view-all-tickets')
+    <div class="card mb-4">
+        <div class="card-body py-2">
+            <form action="{{ route('tickets.index') }}" method="GET" class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="visually-hidden" for="status">Status</label>
+                    <select name="status" id="status" class="form-select form-select-sm">
+                        <option value="">Semua Status</option>
+                        <option value="open" {{ request('status') == 'open' ? 'selected' : '' }}>Open</option>
+                        <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+                        <option value="resolved" {{ request('status') == 'resolved' ? 'selected' : '' }}>Resolved</option>
+                        <option value="closed" {{ request('status') == 'closed' ? 'selected' : '' }}>Closed</option>
+                    </select>
                 </div>
-                <i class="bi bi-folder2-open fs-1 opacity-50"></i>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 bg-info bg-gradient text-white">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-semibold">In Progress</h6>
-                    <h2 class="fw-bold">
-                        {{ \App\Models\Ticket::where('status','in_progress')->count() }}
-                    </h2>
-                </div>
-                <i class="bi bi-arrow-repeat fs-1 opacity-50"></i>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 bg-success bg-gradient text-white">
-            <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="fw-semibold">Closed</h6>
-                    <h2 class="fw-bold">
-                        {{ \App\Models\Ticket::where('status','closed')->count() }}
-                    </h2>
-                </div>
-                <i class="bi bi-check-circle fs-1 opacity-50"></i>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-{{-- TICKET GRID --}}
-<div class="row g-4">
-
-@forelse($tickets as $ticket)
-<div class="col-md-6 col-lg-4">
-
-    <div class="card border-0 shadow-sm rounded-4 h-100">
-        <div class="card-body d-flex flex-column">
-
-            {{-- HEADER CARD --}}
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="fw-semibold">
-                    <a href="{{ route('tickets.show', $ticket) }}" class="text-decoration-none text-dark">
-                        {{ $ticket->title }}
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-funnel"></i> Filter
+                    </button>
+                    <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-x"></i> Reset
                     </a>
-                </h5>
-                <div>
-                    <span class="badge rounded-pill {{ $ticket->status_badge }}">
-                        {{ ucfirst(str_replace('_',' ',$ticket->status)) }}
-                    </span>
                 </div>
-            </div>
-
-            {{-- DESC --}}
-            <p class="text-muted small flex-grow-1">
-                {{ Str::limit($ticket->description, 120) }}
-            </p>
-
-            {{-- FOOTER --}}
-            <div class="d-flex justify-content-between align-items-center mt-auto">
-
-                <div class="small text-muted">
-                    <i class="bi bi-person"></i> {{ $ticket->user->name ?? 'Unknown' }} <br>
-                    <i class="bi bi-clock"></i> {{ $ticket->created_at->diffForHumans() }}
-                </div>
-
-                <div class="d-flex gap-2">
-                    <a href="{{ route('tickets.edit', $ticket) }}" class="btn btn-sm btn-outline-primary rounded-circle">
-                        <i class="bi bi-pencil"></i>
-                    </a>
-
-                    <form action="{{ route('tickets.destroy', $ticket) }}" method="POST"
-                          onsubmit="return confirm('Yakin ingin menghapus tiket ini?')">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger rounded-circle">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </form>
-                </div>
-
-            </div>
-
+            </form>
         </div>
     </div>
+@endcan
 
+{{-- ============================================ --}}
+{{-- STATISTIK RINGKAS --}}
+{{-- ============================================ --}}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">Open</h5>
+                <p class="card-text display-6">
+                    {{ \App\Models\Ticket::where('status', 'open')->count() }}
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-bg-info">
+            <div class="card-body">
+                <h5 class="card-title">In Progress</h5>
+                <p class="card-text display-6">
+                    {{ \App\Models\Ticket::where('status', 'in_progress')->count() }}
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-bg-success">
+            <div class="card-body">
+                <h5 class="card-title">Closed</h5>
+                <p class="card-text display-6">
+                    {{ \App\Models\Ticket::where('status', 'closed')->count() }}
+                </p>
+            </div>
+        </div>
+    </div>
 </div>
-@empty
-<div class="col-12 text-center py-5">
-    <i class="bi bi-inbox fs-1 text-muted"></i>
-    <p class="text-muted fs-5">No tickets found</p>
-    <a href="{{ route('tickets.create') }}" class="btn btn-dark rounded-pill px-4">Create Ticket</a>
-</div>
-@endforelse
 
+{{-- ============================================ --}}
+{{-- TABEL TIKET --}}
+{{-- ============================================ --}}
+<div class="card">
+    <div class="card-body">
+        @forelse($tickets as $ticket)
+            <div class="d-flex justify-content-between align-items-start border-bottom py-3
+                        {{ $loop->last ? 'border-0 pb-0' : '' }}">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1 flex-wrap gap-1">
+                        <h5 class="mb-0 me-2">
+                            <a href="{{ route('tickets.show', $ticket) }}" class="text-decoration-none">
+                                {{ $ticket->title }}
+                            </a>
+                        </h5>
+                        <span class="badge {{ $ticket->status_badge }}">
+                            {{ ucfirst(str_replace('_', ' ', $ticket->status)) }}
+                        </span>
+                        <span class="badge {{ $ticket->priority_badge }}">
+                            {{ ucfirst($ticket->priority) }}
+                        </span>
+                        {{-- MINGGU 4 HARI 2: Show assigned badge for staff --}}
+                        @if($ticket->assigned_to === auth()->id())
+                            <span class="badge bg-info">
+                                <i class="bi bi-person-check"></i> Assigned to you
+                            </span>
+                        @endif
+                    </div>
+                    <p class="text-muted mb-1">
+                        {{ Str::limit($ticket->description, 100) }}
+                    </p>
+                    <small class="text-muted">
+                        <i class="bi bi-person"></i>
+                        {{ $ticket->user->name ?? 'Unknown' }}
+                        @if($ticket->assignee)
+                            &bull;
+                            <i class="bi bi-person-badge"></i>
+                            Assigned: {{ $ticket->assignee->name }}
+                        @endif
+                        &bull;
+                        <i class="bi bi-clock"></i>
+                        {{ $ticket->created_at->diffForHumans() }}
+                    </small>
+                </div>
+                <div class="ms-3 d-flex gap-1">
+                    {{-- MINGGU 4 HARI 2: @can directive untuk edit --}}
+                    @can('update', $ticket)
+                        <a href="{{ route('tickets.edit', $ticket) }}"
+                           class="btn btn-sm btn-outline-primary"
+                           title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    @endcan
+
+                    {{-- MINGGU 4 HARI 2: @can directive untuk delete --}}
+                    @can('delete', $ticket)
+                        <form action="{{ route('tickets.destroy', $ticket) }}"
+                              method="POST"
+                              class="d-inline"
+                              onsubmit="return confirm('Yakin ingin menghapus tiket ini?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    @endcan
+                </div>
+            </div>
+        @empty
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <p class="text-muted mt-3">Belum ada tiket</p>
+                @can('create', App\Models\Ticket::class)
+                    <a href="{{ route('tickets.create') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Buat Tiket Pertama
+                    </a>
+                @endcan
+            </div>
+        @endforelse
+    </div>
 </div>
 
-{{-- PAGINATION --}}
+{{-- Pagination --}}
 @if($tickets->hasPages())
-<div class="mt-4 d-flex justify-content-center">
-    {{ $tickets->links() }}
-</div>
+    <div class="d-flex justify-content-center mt-4">
+        {{ $tickets->links() }}
+    </div>
 @endif
 
+{{-- MINGGU 4 HARI 2: Info box untuk User biasa --}}
+@if(auth()->user()->isUser())
+    <div class="alert alert-info mt-4">
+        <i class="bi bi-info-circle"></i>
+        <strong>Info:</strong> Anda hanya dapat melihat tiket yang Anda buat sendiri.
+    </div>
+@endif
+
+{{-- Authorization Info Card --}}
+<div class="card mt-4 border-secondary">
+    <div class="card-header bg-secondary text-white">
+        <i class="bi bi-shield-lock"></i> Hak Akses Anda ({{ ucfirst(auth()->user()->role) }})
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li>
+                        @can('create', App\Models\Ticket::class)
+                            <i class="bi bi-check-circle text-success"></i>
+                        @else
+                            <i class="bi bi-x-circle text-danger"></i>
+                        @endcan
+                        Buat Tiket Baru
+                    </li>
+                    <li>
+                        @can('view-all-tickets')
+                            <i class="bi bi-check-circle text-success"></i>
+                        @else
+                            <i class="bi bi-x-circle text-danger"></i>
+                        @endcan
+                        Lihat Semua Tiket
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li>
+                        @can('assign-tickets')
+                            <i class="bi bi-check-circle text-success"></i>
+                        @else
+                            <i class="bi bi-x-circle text-danger"></i>
+                        @endcan
+                        Assign Tiket ke Staff
+                    </li>
+                    <li>
+                        @can('access-admin')
+                            <i class="bi bi-check-circle text-success"></i>
+                        @else
+                            <i class="bi bi-x-circle text-danger"></i>
+                        @endcan
+                        Akses Admin Panel
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection

@@ -4,16 +4,38 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * UpdateTicketRequest
+ *
+ * Form Request untuk validasi update tiket.
+ *
+ * PERBEDAAN DENGAN StoreTicketRequest:
+ * 1. Ada field 'status' yang bisa diubah
+ * 2. Authorization check lebih ketat (nanti di Minggu 4)
+ *
+ * Materi Minggu 3 - Hari 2: Input Validation
+ */
 class UpdateTicketRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * MINGGU 4 HARI 2: Cek authorization via Policy
+     * - Admin: bisa update semua
+     * - Staff: bisa update yang assigned
+     * - User: bisa update milik sendiri (belum closed)
      */
     public function authorize(): bool
     {
-        return true;
+        $ticket = $this->route('ticket');
+
+        // Gunakan policy untuk check authorization
+        return $this->user()->can('update', $ticket);
     }
 
+    /**
+     * Prepare data sebelum validasi.
+     */
     protected function prepareForValidation(): void
     {
         $this->merge([
@@ -23,13 +45,14 @@ class UpdateTicketRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Get the validation rules.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * PERBEDAAN DENGAN STORE:
+     * - Ada field 'status' dengan nilai: open, in_progress, closed
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             // Title: wajib, string, 5-255 karakter
             'title' => [
                 'required',
@@ -37,26 +60,20 @@ class UpdateTicketRequest extends FormRequest
                 'min:5',
                 'max:255',
             ],
-            
+
             // Description: wajib, string, minimal 20 karakter
             'description' => [
                 'required',
                 'string',
                 'min:20',
             ],
-            
-            // Status: wajib untuk update, whitelist values
-            'status' => [
-                'required',
-                'in:open,in_progress,closed',
-            ],
-            
-            // Priority: wajib, whitelist values
+
+            // Priority: wajib, WHITELIST values
             'priority' => [
                 'required',
                 'in:low,medium,high',
             ],
-            
+
             // Category: opsional
             'category' => [
                 'nullable',
@@ -64,8 +81,21 @@ class UpdateTicketRequest extends FormRequest
                 'max:100',
             ],
         ];
+
+        // Admin dan Staff bisa update status
+        if ($this->user()->hasAnyRole(['admin', 'staff'])) {
+            $rules['status'] = [
+                'sometimes',
+                'in:open,in_progress,resolved,closed',
+            ];
+        }
+
+        return $rules;
     }
 
+    /**
+     * Get custom error messages.
+     */
     public function messages(): array
     {
         return [
@@ -74,26 +104,29 @@ class UpdateTicketRequest extends FormRequest
             'title.string' => 'Judul harus berupa teks.',
             'title.min' => 'Judul minimal :min karakter.',
             'title.max' => 'Judul maksimal :max karakter.',
-            
+
             // Description messages
             'description.required' => 'Deskripsi tiket wajib diisi.',
             'description.string' => 'Deskripsi harus berupa teks.',
             'description.min' => 'Deskripsi minimal :min karakter agar permasalahan jelas.',
-            
+
             // Status messages
             'status.required' => 'Status tiket wajib dipilih.',
-            'status.in' => 'Status tidak valid. Pilih: Open, In Progress, atau Closed.',
-            
+            'status.in' => 'Status tidak valid. Pilih: Open, In Progress, Resolved, atau Closed.',
+
             // Priority messages
             'priority.required' => 'Prioritas tiket wajib dipilih.',
             'priority.in' => 'Prioritas tidak valid. Pilih: Low, Medium, atau High.',
-            
+
             // Category messages
             'category.string' => 'Kategori harus berupa teks.',
             'category.max' => 'Kategori maksimal :max karakter.',
         ];
     }
 
+    /**
+     * Get custom attribute names.
+     */
     public function attributes(): array
     {
         return [
@@ -105,6 +138,9 @@ class UpdateTicketRequest extends FormRequest
         ];
     }
 
+    /**
+     * Handle passed validation.
+     */
     protected function passedValidation(): void
     {
         $this->merge([
